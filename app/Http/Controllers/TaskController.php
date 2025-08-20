@@ -3,56 +3,35 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
-use App\Models\Project;
-use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class TaskController extends Controller
 {
-    public function index()
+    // menampilkan semua task milik user yang login
+    public function myTasks()
     {
-        $tasks = Task::with(['project', 'user'])->get();
-        return view('tasks.index', compact('tasks'));
+        $tasks = Task::where('user_id', Auth::id())->with('project')->get();
+        return view('tasks.my', compact('tasks'));
     }
 
-    public function create()
+    // user update status task
+    public function updateStatus(Request $request, Task $task)
     {
-        $projects = Project::all();
-        $users = User::all();
-        return view('tasks.create', compact('projects', 'users'));
-    }
+        // pastikan hanya user pemilik task yang bisa update
+        if ($task->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
 
-    public function store(Request $request)
-    {
         $request->validate([
-            'title' => 'required',
-            'project_id' => 'required',
-            'user_id' => 'required',
+            'status' => 'required|in:pending,in-progress,completed',
         ]);
 
-        Task::create($request->all());
+        $task->update([
+            'status' => $request->status
+        ]);
 
-        return redirect()->route('tasks.index')->with('success', 'Task created successfully.');
-    }
-
-    public function edit(Task $task)
-    {
-        $projects = Project::all();
-        $users = User::all();
-        return view('tasks.edit', compact('task', 'projects', 'users'));
-    }
-
-    public function update(Request $request, Task $task)
-    {
-        $request->validate(['title' => 'required']);
-        $task->update($request->all());
-
-        return redirect()->route('tasks.index')->with('success', 'Task updated successfully.');
-    }
-
-    public function destroy(Task $task)
-    {
-        $task->delete();
-        return redirect()->route('tasks.index')->with('success', 'Task deleted successfully.');
+        return redirect()->route('dashboard')->with('success', 'Task updated!');
     }
 }
+
